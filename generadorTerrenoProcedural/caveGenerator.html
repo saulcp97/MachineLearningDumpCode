@@ -1,0 +1,472 @@
+<html>
+
+<head>
+	<title>sin título</title>
+	
+</head>
+
+<body id="gamezone">
+
+<form>
+	<label style="font-weight: 750;">Dureza</label>
+	<div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio1" name="DurezaV" onchange="chD(0);" type="radio" value="1" />
+			<label class="form-check-label" for="inlineradio1">0</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio2" name="DurezaV" onchange="chD(1);" type="radio" value="2" />
+			<label class="form-check-label" for="inlineradio2">1</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input checked="" class="form-check-input" id="inlineradio3" name="DurezaV" onchange="chD(2);" type="radio" value="3" />
+			<label class="form-check-label" for="inlineradio3">2</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio3" name="DurezaV" onchange="chD(3);" type="radio" value="4" />
+			<label class="form-check-label" for="inlineradio3">3</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio3" name="DurezaV" onchange="chD(4);" type="radio" value="5" />
+			<label class="form-check-label" for="inlineradio3">4</label>
+		</div>
+	</div>
+	
+	<label style="font-weight: 750;">Aglomeración</label>
+	<div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio1" name="AgloV" onchange="chA(0);" type="radio" value="0" />
+			<label class="form-check-label" for="inlineradio1">0</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input checked="" class="form-check-input" id="inlineradio2" name="AgloV" onchange="chA(1);" type="radio" value="1" />
+			<label class="form-check-label" for="inlineradio2">1</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio3" name="AgloV" onchange="chA(2);" type="radio" value="2" />
+			<label class="form-check-label" for="inlineradio3">2</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio3" name="AgloV" onchange="chA(3);" type="radio" value="3" />
+			<label class="form-check-label" for="inlineradio3">3</label>
+		</div>
+		<div class="form-check form-check-inline">
+			<input class="form-check-input" id="inlineradio3" name="AgloV" onchange="chA(4);" type="radio" value="4" />
+			<label class="form-check-label" for="inlineradio3">4</label>
+		</div>
+	</div>
+	
+	<label><input type="checkbox" id="cbox1">Cuadricula <button class="btn btn-secondary" onclick="paint(ctx)" type="button">Repintar</button></label>
+	
+	<div>
+		<label>Size of Map</label>
+			<input type="number" id="siX" min="10" max="800" value="800">
+			<input type="number" id="siY" min="10" max="450" value="450"><label style="font-weight: 750;">px</label>
+	</div>
+	
+	<label>Size of cells: <input type="number" id="sOC" min="1" max="50" value="5"></label><label style="font-weight: 750;">px</label>
+	
+	<div name="btnCollect">
+		<button class="btn btn-secondary" onclick="regenerar();for(let i=0;i<stPrec; ++i) {
+				Gen();paint(ctx);}" type="button">Regenerar</button>
+		<button class="btn btn-secondary" onclick="Gen();paint(ctx);" type="button">>> Paso >></button>
+		<button class="btn btn-secondary" onclick="fillNotReachable();paint(ctx);" type="button">Llenar vacío</button>
+	</div>
+</form>
+
+<p><center>
+  <p>Pulsa el botón de  <strong>">> Paso >>"</strong> para adelantar un paso la generación, o el de <strong>"Regenerar"</strong> para generar un nuevo mapa sin iteraciones previas.</p>
+  <canvas id="canvas" style="width:100%; background: #999;" width="800" height="450">
+Canvas not supported by your browser.
+</canvas></center></p>
+
+<script type="application/javascript">
+		window.addEventListener('load',init,false);
+		var canvas=null,ctx=null;
+		var lastPress=null;
+
+		var click=0;
+		
+		var Dureza = 3;
+		var Aglomeracion = 6;
+		//var solitud =
+		
+		function chD(v) {
+			Aglomeracion -= Dureza + 1 + v;
+			Dureza = v;
+			console.log("Dureza: "+ Dureza + ", Aglomeración: " + Aglomeracion)
+		}
+		function chA(v) {
+			Aglomeracion = Dureza + v;
+			console.log("Dureza: "+ Dureza  +", Aglomeración: " + Aglomeracion)
+		}
+		
+		var mapSizeX = 800;
+		var mapSizeY = 450;
+		var sCeil = 5;
+		var rows = mapSizeX/sCeil;
+		var cols = mapSizeY/sCeil;
+		const stPrec = 2
+		const prDungeon = 0.05; //Probability of generating dungeon increase with hardness of terrain
+		
+		var State = []
+		var next = []
+		var IncrementB=new Button(0,0,800,450);
+		var dungeon = [false,[]]
+		var Objetivo = 50;
+		
+		var Start=1;
+		var touches=[];
+		var scaleX=1,scaleY=1;
+
+		var spawn = [Math.floor(rows/2), Math.floor(cols/2)];
+
+		function init(){
+			canvas=document.getElementById('canvas');
+			ctx=canvas.getContext('2d');
+			
+			regenerar();
+			for (let i = 0; i < stPrec; ++i) {
+				Gen();
+			}
+			paint(ctx);
+			
+			//enableInputs();
+			run();
+		}
+		
+		function regenerar() {
+		
+			mapSizeX = document.getElementById("siX").value;
+			mapSizeY = document.getElementById("siY").value;
+			sCeil = document.getElementById("sOC").value;;
+			rows = mapSizeX/sCeil;
+			cols = mapSizeY/sCeil;
+		
+			spawn = [Math.floor(rows/2), Math.floor(cols/2)];
+			for(var i = 0; i < cols; ++i) {
+				State[i] = [];
+				next[i] = [];
+				for(var j = 0; j < rows; ++j) {
+					State[i][j] = Math.random()>0.4?1:0;
+				}
+			}
+			
+			if(Math.random() < prDungeon) {
+				alert("Mazmorra generada")
+				dungeon[0] = true
+				dungeon[1][0] = Math.floor(Math.random() * rows);
+				dungeon[1][1] = Math.floor(Math.random() * cols);
+				//Orient
+				dungeon[1][2] = dungeon[1][0] > rows - dungeon[1][0]?-1:1;
+				dungeon[1][3] = dungeon[1][1] > cols - dungeon[1][1]?-1:1;
+				//Size
+				dungeon[1][4] = Math.floor(Math.max(3, Math.random() * rows/3))
+				dungeon[1][5] = Math.floor(Math.max(3, Math.random() * cols/3))
+				dungeon[1][6] = null
+				for(let i = 0; i <= dungeon[1][5]; ++i) {
+					for(let j = 0; j <= dungeon[1][4]; ++j) {
+						if (dungeon[1][1]+dungeon[1][3]*j > 0 && dungeon[1][1]+dungeon[1][3]*j < cols -1
+							&& dungeon[1][0]+dungeon[1][2]*i > 0 && dungeon[1][0]+dungeon[1][2]*i < rows - 1) {
+								State[dungeon[1][1]+dungeon[1][3]*j] [dungeon[1][0]+dungeon[1][2]*i] = 2;
+						}
+					}
+				}
+				
+				while (dungeon[1][6] == null) {
+					for(let i = 0; i <= dungeon[1][5]; ++i) {
+						for(let j = 0; j <= dungeon[1][4]; ++j) {
+							if ((i == 0 || i == dungeon[1][5]) || (j == 0 || j == dungeon[1][4])) {
+								if (dungeon[1][1]+dungeon[1][3]*j > 0 && dungeon[1][1]+dungeon[1][3]*j < cols -1
+									&& dungeon[1][0]+dungeon[1][2]*i > 0 && dungeon[1][0]+dungeon[1][2]*i < rows - 1) {
+									if (Math.random() < 0.0001) {
+										dungeon[1][6] = [dungeon[1][1]+dungeon[1][3]*j, dungeon[1][0]+dungeon[1][2]*i]
+										break
+									}
+								}
+							}
+						}
+					}
+				}
+				State[dungeon[1][6][0]][dungeon[1][6][1]] = 3;
+				
+				
+			} else {
+				dungeon[0] = false
+			}
+			
+			
+			paint(ctx);
+		}
+			
+		function rand(max){
+			return ~~Math.floor(Math.random()*max);
+		}
+		
+		function run(){
+			setTimeout(run,50);
+			act();
+		}
+
+		function act(){
+			//if(IncrementB.touch() && lastPress==1){
+			//	Gen();
+			//	paint(ctx);
+			//}
+			//lastPress=null;
+		}
+		
+		function Gen()	{
+			next = []
+			for(var i = 0; i < cols; ++i) {
+				next[i] = []
+				for(var j = 0; j < rows; ++j) {
+					if (State[i][j] == 2 || State[i][j] == 3 || State[i][j] == 4 || State[i][j] == 5) {
+						if(State[i][j] != 3
+							&& !(i == 0 || j == 0) && !(i == cols - 1 || j == rows - 1)
+							&& !(State[i+1][j] == 0 || State[i-1][j] == 0 || State[i][j+1] == 0 || State[i][j-1] == 0) //NOT in direct Neightborhood with 0
+							&& !(State[i+1][j] == 1 || State[i-1][j] == 1 || State[i][j+1] == 1 || State[i][j-1] == 1)) //NOT in direct Neightborhood with 1
+						{
+							if(State[i+1][j] == 3 || State[i-1][j] == 3 || State[i][j+1] == 3 || State[i][j-1] == 3) {
+								next[i][j] = 4
+							} else if (State[i+1][j] == 4 || State[i-1][j] == 4 || State[i][j+1] == 4 || State[i][j-1] == 4) {
+								next[i][j] = 5
+							} else {
+								next[i][j] = 2
+							}
+						} else {
+							next[i][j] = State[i][j];
+						}
+					} else if (i == 0 || j == 0) {
+						//State[i][j] = 1
+						next[i][j] = 1
+					} else if (i == cols - 1 || j == rows - 1) {
+						//State[i][j] = 1
+						next[i][j] = 1
+					} else {
+						if(State[i][j] == 0 && (State[i][j+1] == 1 && State[i][j-1] == 1 && State[i+1][j] == 1 && State[i-1][j] == 1)) {
+							next[i][j] = 1
+						} else {
+							let sum = (State[i][j-1] + State[i-1][j] + State[i][j+1] + State[i+1][j])/2 + (State[i+1][j-1] + State[i-1][j+1] + State[i-1][j-1] + State[i+1][j+1])/1;
+							if(sum < Dureza) {
+								next[i][j] = 0;
+							} else if(sum > Aglomeracion) {
+								next[i][j] = 1;
+							} else {
+								next[i][j] = State[i][j];
+							}
+						}
+					}
+					if (next[i][j] == null) {
+						next[i][j] = 1
+						console.log("overwrite")
+					}
+				}
+			}
+			State = next;
+			//Now its time for search available spawnpoint
+			//First check the current is not available
+			console.log(State);
+			if(State[spawn[1]][spawn[0]] != 0) {
+				while (State[spawn[1]][spawn[0]] != 0) {
+					spawn[0] = Math.floor(Math.random() * rows);
+					spawn[1] = Math.floor(Math.random() * cols);
+				}
+			}
+			console.log("Step TERMINADO")
+		}
+
+
+		function fillNotReachable() {
+			//spawn[0], spawn[1]
+			next = []
+			for(let i = 0; i < cols; ++i) {
+				next[i] = [];
+				for(let j = 0; j < rows; ++j) {
+					if(State[i][j] != 0) {
+						next[i][j] = State[i][j];
+					} else {
+						next[i][j] = 1;
+					}
+				}
+			}
+			next[spawn[1]][spawn[0]] = 0;
+			
+			var stak = [[spawn[1], spawn[0]]];
+			
+			while (stak.length > 0) {
+				let point = stak.pop();
+				console.log(point)
+				next[point[0]][point[1]] = 0
+				
+				if (point[0] - 1 >= 0 && State[point[0]-1][point[1]] == 0 && next[point[0]-1][point[1]] != 0) {
+					stak.push([point[0]-1, point[1]]);
+				}
+				if (point[1] - 1 >= 0 && State[point[0]][point[1]-1] == 0 && next[point[0]][point[1]-1] != 0) {
+					stak.push([point[0], point[1]-1]);
+				}
+				if (point[0] + 1 < cols && State[point[0]+1][point[1]] == 0 && next[point[0]+1][point[1]] != 0) {
+					stak.push([point[0]+1, point[1]]);
+				}
+
+				if (point[1] + 1 < rows && State[point[0]][point[1]+1] == 0 && next[point[0]][point[1]+1] != 0) {
+					stak.push([point[0], point[1]+1]);
+				}
+				
+			}
+			State = next;
+		}
+
+
+		function paint(ctx){
+			ctx.fillStyle = '#84694D';
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+
+			ctx.fillStyle = '#654321';
+			//ctx.fillRect(10,10,10,10);
+			for(var i = 0; i < cols; ++i) {
+				for(var j = 0; j < rows; ++j) {
+					if(State[i][j] == 1) {
+						ctx.fillStyle = '#654321';
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 2) {
+						ctx.fillStyle = "darkgrey";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 3) {
+						ctx.fillStyle = "#4B0082";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 4) {
+						ctx.fillStyle = "#800080";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 5) {
+						ctx.fillStyle = "#9370DB";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					}
+				}
+			}
+			if(document.getElementById("cbox1").checked) {
+				//ctx.strokeStyle = "#222222AA";
+				ctx.strokeStyle = "#00000088";
+				ctx.lineWidth = 1;
+				for(var i = 0; i < cols; ++i) {
+					ctx.beginPath();
+					ctx.moveTo(0, i*sCeil);
+					ctx.lineTo(rows*sCeil, i*sCeil);
+					ctx.stroke();
+				}
+				
+				for(var j = 0; j < rows; ++j) {
+					ctx.beginPath();
+					ctx.moveTo(j*sCeil, 0);
+					ctx.lineTo(j*sCeil, cols*sCeil);
+					ctx.stroke();
+				}
+			}
+			
+			
+			ctx.fillStyle = "#98FB98";
+			ctx.fillRect(spawn[0]*sCeil+1, spawn[1]*sCeil+1, sCeil-2, sCeil-2);
+			
+			if (dungeon[0]) {
+				ctx.fillStyle = "#4B0082";
+				ctx.fillRect(dungeon[1][0]*sCeil+1, dungeon[1][1]*sCeil+1, sCeil-2, sCeil-2);
+			}
+		}
+				
+
+
+		function Button(x,y,width,height){
+			this.x=(x==null)?0:x;
+			this.y=(y==null)?0:y;
+			this.width=(width==null)?0:width;
+			this.height=(height==null)?this.width:height;
+		}
+		Button.prototype.touch=function(){
+			for(var i=0,l=touches.length;i<l;i++){
+				if(touches[i]!=null){
+					if(this.x<touches[i].x&&
+						this.x+this.width>touches[i].x&&
+						this.y<touches[i].y&&
+						this.y+this.height>touches[i].y){
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+	Button.prototype.stroke=function(ctx){
+			ctx.strokeRect(this.x,this.y,this.width,this.height);
+		}
+	Button.prototype.fill=function(ctx){
+			ctx.fillRect(this.x,this.y,this.width,this.height);
+		}
+	  
+
+
+	function enableInputs(){
+			document.addEventListener('touchstart',function(evt){
+				var t=evt.changedTouches;
+				for(var i=0;i<t.length;i++){
+					var x=~~((t[i].clientX-canvas.offsetLeft)*scaleX);
+					var y=~~((t[i].clientY-canvas.offsetTop)*scaleY);
+					touches[t[i].identifier%100]=new Vtouch(x,y);
+					lastPress=1;
+				}
+			},false);
+			document.addEventListener('touchmove',function(evt){
+				evt.preventDefault();
+				var t=evt.changedTouches;
+				for(var i=0;i<t.length;i++){
+					if(touches[t[i].identifier%100]){
+						touches[t[i].identifier%100].x=~~((t[i].clientX-canvas.offsetLeft)*scaleX);
+						touches[t[i].identifier%100].y=~~((t[i].clientY-canvas.offsetTop)*scaleY);
+					}
+				}
+			},false);
+			document.addEventListener('touchend',function(evt){
+				var t=evt.changedTouches;
+				for(var i=0;i<t.length;i++){
+					touches[t[i].identifier%100]=null;
+				}
+			},false);
+			document.addEventListener('touchcancel',function(evt){
+				var t=evt.changedTouches;
+				for(var i=0;i<t.length;i++){
+					touches[t[i].identifier%100]=null;
+				}
+			},false);
+			
+			document.addEventListener('mousedown',function(evt){
+				evt.preventDefault();
+				var x=~~((evt.clientX-canvas.offsetLeft)*scaleX);
+				var y=~~((evt.clientY-canvas.offsetTop)*scaleY);
+				touches[0]=new Vtouch(x,y);
+				lastPress=1;
+			},false);
+			document.addEventListener('mousemove',function(evt){
+				if(touches[0]){
+					touches[0].x=~~((evt.clientX-canvas.offsetLeft)*scaleX);
+					touches[0].y=~~((evt.clientY-canvas.offsetTop)*scaleY);
+				}
+			},false);
+			document.addEventListener('mouseup',function(evt){
+				touches[0]=null;
+			},false);
+
+			function Vtouch(x,y){
+				this.x=x||0;
+				this.y=y||0;
+			}
+		}
+
+		window.requestAnimationFrame=(function(){
+			return window.requestAnimationFrame || 
+				window.webkitRequestAnimationFrame || 
+				window.mozRequestAnimationFrame || 
+				function(callback){window.setTimeout(callback,17);};
+		})();
+</script>
+</body>
+
+</html>
+<p style="text-align: justify;">Generador de mapas de cuevas procedurales Online, útil para la generación rápida de mapas de este tipo para partidas de rol, imagenes que deban parecer mapas, videojuegos, etc.. Todo feedback y sugerencias, son bienvenidas.</p><p style="text-align: justify;">Este es una imagen de una cueva generada alterando los valores de dureza y aglomeración para intentar generar estructuras interesantes.</p><table align="center" cellpadding="0" cellspacing="0" class="tr-caption-container" style="margin-left: auto; margin-right: auto;"><tbody><tr><td style="text-align: center;"><a href="https://1.bp.blogspot.com/-rADgWsi1Tb8/XzqtJuYB6rI/AAAAAAAAC20/5nSyozb12tg7-xE0WpEgLYg1BYiux70zACNcBGAsYHQ/s800/caveGenerator0.1.png" style="margin-left: auto; margin-right: auto;"><img alt="Cueva Procedural" border="0" data-original-height="450" data-original-width="800" height="230" src="https://1.bp.blogspot.com/-rADgWsi1Tb8/XzqtJuYB6rI/AAAAAAAAC20/5nSyozb12tg7-xE0WpEgLYg1BYiux70zACNcBGAsYHQ/w410-h230/caveGenerator0.1.png" title="Cueva 2D generada proceduralmente." width="410" /></a></td></tr><tr><td class="tr-caption" style="text-align: center;"><i>Cueva generada en la versión 0.1 de la herramienta</i></td></tr></tbody></table><p style="text-align: justify;"><br /></p>

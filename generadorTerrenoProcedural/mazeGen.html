@@ -1,0 +1,474 @@
+<html>
+
+
+<body id="gamezone">
+
+
+
+<div>
+	<div>
+		<center>
+			<button class="btn btn-secondary" onclick="regenerar();paint(ctx);" type="button">Generar</button>
+		</center>
+	</div>
+	<div>
+		<center>
+			<canvas height="450" id="canvas" style="background: #999;" width="450">
+				Canvas not supported by your browser.
+			</canvas>
+		</center>
+	</div>
+</div>
+
+<script type="application/javascript">
+		window.addEventListener('load',init,false);
+		var canvas=null,ctx=null;
+		var lastPress=null;
+
+		var click=0;
+		
+		var Dureza = 3;
+		var Aglomeracion = 6;
+		//var solitud =
+		
+		function chD(v) {
+			Aglomeracion -= Dureza + 1 + v;
+			Dureza = v;
+			console.log("Dureza: "+ Dureza + ", Aglomeración: " + Aglomeracion)
+		}
+		function chA(v) {
+			Aglomeracion = Dureza + v;
+			console.log("Dureza: "+ Dureza  +", Aglomeración: " + Aglomeracion)
+		}
+		const sCeil = 25;
+		const rows = 450/sCeil;
+		const cols = 450/sCeil;
+		const stPrec = 5
+		const prDungeon = 0.05; //Probability of generating dungeon increase with hardness of terrain
+		
+		var State = [];
+		var next = [];
+		var nS = [];
+		var IncrementB=new Button(0,0,450,450);
+		var dungeon = [false,[]]
+		var Objetivo = 50;
+		
+		var Start=1;
+		var touches=[];
+		var scaleX=1,scaleY=1;
+		
+		var spawn = [Math.floor(rows/2), Math.floor(cols/2)];
+		var eP = [1,1];
+		
+		function init(){
+			canvas=document.getElementById('canvas');
+			ctx=canvas.getContext('2d');
+			regenerar();
+			//for (let i = 0; i < stPrec; ++i) {
+			//Gen();
+			//}
+			paint(ctx);
+			
+			//enableInputs();
+			run();
+		}
+		
+		function regenerar() {
+			var Stack = [];
+		
+			State = [];
+			next = [];
+			for(var i = 0; i < cols; ++i) {
+				State[i] = [];
+				next[i] = [];
+				for(var j = 0; j < rows; ++j) {
+					State[i][j] = 1;
+					next[i][j] = 0;
+				}
+			}
+			
+			let side = rand(4);
+			if(side % 2 == 0) {
+				eP = [rand(cols-2) + 1, side==0?1:rows-2];
+			} else {
+				eP = [side==1?1:cols-2, rand(rows-2) + 1];
+			}
+			
+			switch(side) {
+				case 0:
+					State[0][eP[0]] = 0;
+					break;
+				case 1:
+					State[eP[1]][0] = 0;
+					break;
+				case 2:
+					State[rows - 1][eP[0]] = 0;
+					break;
+				case 3:
+					State[eP[1]][cols - 1] = 0;
+					break;
+			}
+			State[eP[1]][eP[0]] = 0;
+			
+			Stack.push(eP);
+			while (Stack.length > 0) {
+				let point = Stack.pop();
+			
+				let directions = [0,1,2,3];
+			
+				while (directions.length > 0) {
+					//this is a tricky boring trick
+					let ind = rand(directions.length);
+					let dir = directions[ind];
+					directions[ind] = directions[directions.length - 1];
+					directions.pop();//no hace falta guardarla porque dir sería lo que le pasariamos
+				
+				
+					//proceso de checkeo
+					switch(dir) {
+						case 0:
+							if(point[1] > 1 && State[point[1] - 1][point[0]] != 0 && checkPoint(State, point[0], point[1]-1, 2)) {
+								//if(point[1] > 2 && State[point[1]-2][point[0]] != 0) {
+									State[point[1] - 1][point[0]] = 0;
+									//console.log(point);
+									Stack.push([point[0], point[1]-1]);
+									//paint(ctx)
+								//}
+							}
+							break;
+						case 1:
+							if(point[0] > 1 && State[point[1]][point[0] - 1] != 0 && checkPoint(State, point[0]-1, point[1], 2)) {
+								//if(point[0] > 2 && State[point[1]][point[0]-2] != 0) {
+									State[point[1]][point[0] - 1] = 0;
+									//console.log(point);
+									Stack.push([point[0] - 1, point[1]]);
+									//paint(ctx)
+								//}
+							}
+							break;
+						case 2:
+							if(point[1] < rows - 2 && State[point[1] + 1][point[0]] != 0 && checkPoint(State, point[0], point[1]+1, 2)) {
+								//if(point[1] < rows-3 && State[point[1]+2][point[0]] != 0) {
+									State[point[1] + 1][point[0]] = 0;
+									//console.log(point);
+									Stack.push([point[0], point[1]+1]);
+									//paint(ctx)
+								//}
+							}
+							break;
+						case 3:
+							if(point[0] < cols - 2 && State[point[1]][point[0] + 1] != 0 && checkPoint(State, point[0]+1, point[1], 2)) {
+								//if(point[0] < cols - 3 && State[point[1]][point[0]+2] != 0) {
+									State[point[1]][point[0] + 1] = 0;
+									//console.log(point);
+									Stack.push([point[0] + 1, point[1]]);
+									//paint(ctx)
+								//}
+							}
+							break;
+						}
+					}
+				
+			paint(ctx);
+			}
+		}
+		
+		function PrimaryCheck(map, x, y, max) {
+			let sum = 0;
+			let prob = Math.random() < 0.95;
+			
+			for(let i = -1; i < 2; ++i){
+				for(let j = -1;j < 2; ++j){
+					if(map[y+i][x+j] == 0) {
+						++sum;
+					}
+				}
+			}
+			
+			let res = true;
+			if (max >= sum) {
+				let sum2 = 0;
+				if (!(x <= 1 || y <= 1 || y >= map.length - 2 || x >= map[0].length - 2)){
+					for(let i = -1; i < 2; ++i){
+						for(let j = -1; j < 2; ++j){
+							let abi = checkPoint(map, x + j, y + i, max-1);
+							if (abi) {
+								++sum2;//return false;
+							}
+							//if(map[y+i][x+j] == 0) {
+							//	checkPoint(map, x + j, y + i, max)
+							//}
+						}
+					}
+				}
+				if(sum2 == sum) {
+					return false;
+				}
+			}
+			
+			
+			return max >= sum;
+		}
+		
+		
+		function checkPoint(map, x, y, max) {
+			let sum = 0;
+			let prob = true; //Math.random() < 0.95;
+			
+			for(let i = -1; i < 2; ++i){
+				for(let j = -1;j < 2; ++j){
+					if(y + i >= map.length) {
+						console.log(y + i, i);
+					}
+					if(map[y+i][x+j] == 0) {
+						++sum;
+					}
+				}
+			}
+			
+			
+			//Hay que ampliarlo para tener en cuenta casos que el desarrollo futuro cree bucles
+			if(max >= sum && prob) {
+				if(map[y][x-1] == 0 && map[y][x+1] == 0) {
+					return false
+				}
+				if(map[y-1][x] == 0 && map[y+1][x] == 0) {
+					return false
+				}
+				if(map[y][x-1] == 0 && map[y+1][x] == 0) {
+					return false
+				}
+				if(map[y][x-1] == 0 && map[y-1][x] == 0) {
+					return false
+				}
+				if(map[y][x+1] == 0 && map[y+1][x] == 0) {
+					return false
+				}
+				if(map[y][x+1] == 0 && map[y-1][x] == 0) {
+					return false
+				}
+				
+				return true;
+			}
+			
+			
+			/*
+			sum = 0;
+			if(map[y][x-1] == 0) {
+				++sum;
+			}
+			if(map[y-1][x] == 0) {
+				++sum;
+			}
+			if(map[y][x+1] == 0) {
+				++sum;
+			}
+			if(map[y+1][x] == 0) {
+				++sum;
+			}
+			*/
+			/*
+			if (!(x <= 1 || y <= 1 || y >= map.length - 2 || x >= map[0].length - 2)){
+				for(let i = -2; i < 3; ++i){
+					for(let j = -2;j < 3; ++j){
+						if(y + i >= map.length) {
+							console.log(y + i, i);
+						}
+						if(map[y+i][x+j] == 0) {
+							sum += 0.3;
+						}
+					}
+				}
+			}
+			*/
+			//la probabilidad debe ser muy alta para evitar que quede atascada en un bucle de generacion casi nula
+			return false;
+		}
+		
+		
+		
+		function rand(max){
+			return ~~Math.floor(Math.random()*max);
+		}
+		
+		function run(){
+			setTimeout(run,50);
+			act();
+		}
+
+		function act(){
+			//if(IncrementB.touch() && lastPress==1){
+			//	Gen();
+			//	paint(ctx);
+			//}
+			//lastPress=null;
+		}
+		
+		function Gen()	{
+			//Punto inicial eP, tiene la salida y las 3 posibles ramificaciones a partir de las que trabajar.
+			let iP = eP;
+			var Stack = [];
+		
+		
+			if(State[iP[1]][iP[0] - 1] == 0) {
+				let path = [[iP, [iP[0]-1, iP[1]], "O"]];
+				Stack.push(path);
+			}
+			if(State[iP[1]][iP[0] + 1] == 0) {
+				let path = [[iP, [iP[0]+1, iP[1]], "O"]];
+				Stack.push(path);
+			}
+			if(State[iP[1] - 1][iP[0]] == 0) {
+				let path = [[iP, [iP[0], iP[1] - 1], "O"]];
+				Stack.push(path);
+			}
+			if(State[iP[1] + 1][iP[0]] == 0) {
+				let path = [[iP, [iP[0], iP[1] + 1], "O"]];
+				Stack.push(path);
+			}
+			
+			while(Stack.length > 0) {
+				let path = Stack.pop();
+				let last = path.length - 1;
+				let lNode = path[last];
+				
+				console.log(lNode[1]);
+				
+				//Check if node is valid no minor of 0;
+				if(lNode[1][0] != 0 && lNode[1][1] != 0 && lNode[1][0] != cols - 1 && lNode[1][1] != rows - 1) {
+					//console.log("Validity", lNode[1]);
+					
+					var g = 0;
+					if(State[lNode[1][1]][lNode[1][0] - 1] == 0 && !(lNode[1][0] - 1 == lNode[0][0] && lNode[1][1] == lNode[0][1])) {
+						if(lNode[2] === "O" || lNode[2] === "D") {
+							++g;
+							let cami = path.concat([[lNode[1], [lNode[1][0]-1, lNode[1][1]], "P"]]);
+							Stack.push(cami);
+						}
+					}
+					if(State[lNode[1][1]][lNode[1][0] + 1] == 0 && !(lNode[1][0] + 1 == lNode[0][0] && lNode[1][1] == lNode[0][1])) {
+						if(lNode[2] === "O" || lNode[2] === "D") {
+							++g;
+							let cami = path.concat([[lNode[1], [lNode[1][0]+1, lNode[1][1]], "P"]]);
+							Stack.push(cami);
+						}
+					}
+					if(State[lNode[1][1] - 1][lNode[1][0]] == 0 && !(lNode[1][0] == lNode[0][0] && lNode[1][1] - 1 == lNode[0][1])) {
+						if(lNode[2] === "O" || lNode[2] === "D") {
+							++g;
+							let cami = path.concat([[lNode[1], [lNode[1][0], lNode[1][1]-1], "P"]]);
+							Stack.push(cami);
+						}
+					}
+					if(State[lNode[1][1] + 1][lNode[1][0]] == 0 && !(lNode[1][0] == lNode[0][0] && lNode[1][1] + 1 == lNode[0][1])) {
+						if(lNode[2] === "O" || lNode[2] === "D") {
+							++g;
+							let cami = path.concat([[lNode[1], [lNode[1][0], lNode[1][1]+1], "P"]]);
+							Stack.push(cami);
+						}
+					}
+					
+					if(g == 0) {
+						State[lNode[1][1]][lNode[1][0]] = 1;
+						console.log("Star End", lNode[1]);
+					}
+				}
+			}
+			
+			console.log("Step TERMINADO")
+		}
+
+		function paint(ctx){
+			let background = '#84694D';
+			background = 'white';
+			
+			let walls = '#654321';
+			walls = "black";
+			
+			ctx.fillStyle = background;
+			ctx.fillRect(0,0,canvas.width,canvas.height);
+
+			//ctx.fillStyle = '#654321';
+			//ctx.fillRect(10,10,10,10);
+			for(var i = 0; i < cols; ++i) {
+				for(var j = 0; j < rows; ++j) {
+					if(State[i][j] == 1) {
+						ctx.fillStyle = walls;
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 2) {
+						ctx.fillStyle = "darkgrey";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 3) {
+						ctx.fillStyle = "#4B0082";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 4) {
+						ctx.fillStyle = "#800080";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					} else if (State[i][j] == 5) {
+						ctx.fillStyle = "#9370DB";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					}
+					if(next[i][j] != 0 && next[i][j] != -1) {
+						ctx.fillStyle = "#98FB98";
+						ctx.fillRect(j*sCeil, i*sCeil, sCeil, sCeil);
+					}
+				}	
+			}
+			
+			
+			ctx.strokeStyle = walls;
+			ctx.lineWidth = 1;
+			for(var i = 0; i < cols; ++i) {
+				ctx.beginPath();
+				ctx.moveTo(0, i*sCeil);
+				ctx.lineTo(rows*sCeil, i*sCeil);
+				ctx.stroke();
+			}
+				
+			for(var j = 0; j < rows; ++j) {
+				ctx.beginPath();
+				ctx.moveTo(j*sCeil, 0);
+				ctx.lineTo(j*sCeil, cols*sCeil);
+				ctx.stroke();
+			}
+			
+			
+		}	
+
+
+		function Button(x,y,width,height){
+			this.x=(x==null)?0:x;
+			this.y=(y==null)?0:y;
+			this.width=(width==null)?0:width;
+			this.height=(height==null)?this.width:height;
+		}
+		Button.prototype.touch=function(){
+			for(var i=0,l=touches.length;i<l;i++){
+				if(touches[i]!=null){
+					if(this.x<touches[i].x&&
+						this.x+this.width>touches[i].x&&
+						this.y<touches[i].y&&
+						this.y+this.height>touches[i].y){
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+		Button.prototype.stroke=function(ctx){
+			ctx.strokeRect(this.x,this.y,this.width,this.height);
+		}
+		Button.prototype.fill=function(ctx){
+			ctx.fillRect(this.x,this.y,this.width,this.height);
+		}
+
+		window.requestAnimationFrame=(function(){
+			return window.requestAnimationFrame || 
+				window.webkitRequestAnimationFrame || 
+				window.mozRequestAnimationFrame || 
+				function(callback){window.setTimeout(callback,17);};
+		})();
+</script>
+</body>
+
+</html>
